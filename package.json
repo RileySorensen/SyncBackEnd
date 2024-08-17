@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "name": "syncbackend",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "nodemon app.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
