@@ -26,7 +26,7 @@ const router = express.Router();
  *         description: Error creating group
  */
 router.post("/groups", async (req, res) => {
-  const { name } = req.body;
+  const { name, userId } = req.body;
 
   if (!name) {
     return res.status(400).json({ message: "Group name is required" });
@@ -38,6 +38,10 @@ router.post("/groups", async (req, res) => {
       .insert({ name: name })
       .select("id");
     console.log(data);
+
+    const { data: addUserData, error: addUserError } = await supabase
+      .from("GroupMembers")
+      .insert({ groupid: data[0].id, userid: userId });
 
     return res.status(201).json("Created new group, id: " + data[0].id);
   } catch (error) {
