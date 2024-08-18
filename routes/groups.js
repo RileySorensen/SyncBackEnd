@@ -400,10 +400,6 @@ router.get("/groups/:groupId/members", async (req, res) => {
  *                   groupid:
  *                     type: integer
  *                     description: The ID of the group that the event is associated with.
- *                   enddate:
- *                     type: string
- *                     format: date
- *                     description: The end date of the event.
  *       500:
  *         description: Error fetching events.
  *         content:

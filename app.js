@@ -27,7 +27,7 @@ app.use("/api", usersRouter);
 //Create new GroupMembers (userid, groupid) => 200                 -- DONE
 //Add Interest to User (userid, interestid) => 200                 -- DONE
 //Create new custom Interest (name) => 200                         -- DONE
-//Create new Event (name, date) => 200                             -- DONE
+//Create new Event (name) => 200                                   -- DONE
 //Go to Vote page () => List of Interests                          -- DONE
 //Submit Vote (list of interestids) => 200                         -- DONE
 //Leave group (groupid, userid) => 200                             -- DONE
