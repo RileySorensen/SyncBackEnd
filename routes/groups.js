@@ -356,7 +356,73 @@ router.get("/groups/:groupId/members", async (req, res) => {
 
     return res.status(200).json(data[0].Users);
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching group members", error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching group members", error });
+  }
+});
+
+/**
+ * @swagger
+ * /groups/{groupId}/events:
+ *   get:
+ *     summary: Retrieve all events for a specific group
+ *     description: Fetches a list of all events associated with the specified group ID.
+ *     tags:
+ *       - Events
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: The ID of the group to retrieve events for.
+ *     responses:
+ *       200:
+ *         description: A list of events for the specified group.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                     description: The event ID.
+ *                   name:
+ *                     type: string
+ *                     description: The name of the event.
+ *                   groupid:
+ *                     type: integer
+ *                     description: The ID of the group that the event is associated with.
+ *                   enddate:
+ *                     type: string
+ *                     format: date
+ *                     description: The end date of the event.
+ *       500:
+ *         description: Error fetching events.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: object
+ */
+router.get("/groups/:groupId/events", async (req, res) => {
+  const { groupId } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from("Events")
+      .select()
+      .eq("groupid", groupId);
+    return res.status(200).json(data);
+  } catch (error) {
+    return res.status(500).json({ message: "Error fetching events", error });
   }
 });
 

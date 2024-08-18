@@ -4,10 +4,10 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/events:
+ * /events:
  *   post:
- *     summary: Create a new event
- *     tags: [Events]
+ *     summary: Create a new event and initialize votes for interests
+ *     description: Creates a new event with the given name, group ID, and end date. Initializes votes for all interests in the specified group with a count of 0.
  *     requestBody:
  *       required: true
  *       content:
@@ -17,32 +17,27 @@ const router = express.Router();
  *             properties:
  *               name:
  *                 type: string
- *                 description: The name of the event
- *               date:
+ *                 description: The name of the event.
+ *                 example: "Community BBQ"
+ *               groupId:
+ *                 type: integer
+ *                 description: The ID of the group associated with the event.
+ *                 example: 1
+ *               enddate:
  *                 type: string
- *                 description: The date of the event (as a string)
- *             required:
- *               - name
- *               - date
+ *                 format: date-time
+ *                 description: The end date of the event in ISO 8601 format.
+ *                 example: "2024-08-31T23:59:59Z"
  *     responses:
- *       201:
- *         description: Successfully created the event
+ *       '201':
+ *         description: Event created successfully and votes initialized.
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                   description: The ID of the newly created event
- *                 name:
- *                   type: string
- *                   description: The name of the event
- *                 date:
- *                   type: string
- *                   description: The date of the event (as a string)
- *       400:
- *         description: Missing event name or date
+ *               type: string
+ *               example: "Created new event!"
+ *       '400':
+ *         description: Missing required fields in the request body.
  *         content:
  *           application/json:
  *             schema:
@@ -50,9 +45,9 @@ const router = express.Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message
- *       500:
- *         description: Error creating event
+ *                   example: "Event name, groupId, and enddate are required"
+ *       '500':
+ *         description: Error occurred while creating the event.
  *         content:
  *           application/json:
  *             schema:
@@ -60,10 +55,10 @@ const router = express.Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message
+ *                   example: "Error creating event"
  *                 error:
  *                   type: object
- *                   description: Error details
+ *                   additionalProperties: true
  */
 router.post("/events", async (req, res) => {
   const { name, groupId, enddate } = req.body;
@@ -131,20 +126,21 @@ async function getAllInterestsInGroup(groupId) {
 
 /**
  * @swagger
- * /api/events/{eventId}/vote:
+ * /events/{groupId}/interests:
  *   get:
- *     summary: Get interests available for voting in a specific event
- *     tags: [Events]
+ *     summary: Get all unique interests for a group
+ *     description: Retrieves a list of all unique interests associated with the specified group ID. This includes interests of all users within the group.
  *     parameters:
  *       - in: path
- *         name: eventId
+ *         name: groupId
+ *         required: true
  *         schema:
  *           type: integer
- *         required: true
- *         description: The ID of the event to get interests for voting
+ *         description: The ID of the group for which to fetch interests.
+ *         example: 1
  *     responses:
- *       200:
- *         description: Successfully fetched the interests for voting
+ *       '200':
+ *         description: Successfully retrieved the list of interests.
  *         content:
  *           application/json:
  *             schema:
@@ -154,18 +150,14 @@ async function getAllInterestsInGroup(groupId) {
  *                 properties:
  *                   id:
  *                     type: integer
- *                     description: The ID of the interest
+ *                     description: The ID of the interest.
+ *                     example: 1
  *                   name:
  *                     type: string
- *                     description: The name of the interest
- *                   inside:
- *                     type: boolean
- *                     description: Whether the interest is inside
- *                   outside:
- *                     type: boolean
- *                     description: Whether the interest is outside
- *       400:
- *         description: Invalid event ID
+ *                     description: The name of the interest.
+ *                     example: "Gardening"
+ *       '500':
+ *         description: Error occurred while fetching the interests.
  *         content:
  *           application/json:
  *             schema:
@@ -173,35 +165,17 @@ async function getAllInterestsInGroup(groupId) {
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message
- *       500:
- *         description: Error fetching interests for voting
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   description: Error message
+ *                   example: "Error fetching interests for voting"
  *                 error:
  *                   type: object
- *                   description: Error details
+ *                   additionalProperties: true
  */
-router.get("/events/:eventId/vote", async (req, res) => {
-  const { eventId } = req.params;
+router.get("/events/:groupId/interests", async (req, res) => {
+  const { groupId } = req.params;
 
   try {
-    const interests = await db("interests")
-      .join(
-        "event_interests",
-        "interests.id",
-        "=",
-        "event_interests.interest_id"
-      )
-      .where({ "event_interests.event_id": eventId });
-
-    res.status(200).json(interests);
+    const interestsList = await getAllInterestsInGroup(groupId);
+    res.status(200).json(interestsList);
   } catch (error) {
     res
       .status(500)
@@ -280,7 +254,7 @@ router.get("/events/:eventId/vote", async (req, res) => {
  */
 router.post("/events/:eventId/vote", async (req, res) => {
   const { eventId } = req.params;
-  const { votes } = req.body; // Assume votes is an array of { interestId, voteCount }
+  const { votes } = req.body; // Assume votes is an array of interest ids
 
   if (!votes || !Array.isArray(votes)) {
     return res
@@ -289,18 +263,46 @@ router.post("/events/:eventId/vote", async (req, res) => {
   }
 
   try {
-    const votePromises = votes.map((vote) => {
-      return db("votes").insert({
-        event_id: eventId,
-        interest_id: vote.interestId,
-        vote_count: vote.voteCount,
-      });
-    });
+    for (const interestId of votes) {
+      // Fetch the current votescount for the specific event and interest ID
+      const { data: voteRecord, error: fetchError } = await supabase
+        .from("Votes")
+        .select("votescount")
+        .eq("eventid", eventId)
+        .eq("interestid", interestId)
+        .single();
 
-    await Promise.all(votePromises);
-    res.status(201).json({ message: "Votes submitted successfully" });
+      if (fetchError) {
+        console.error(
+          `Error fetching vote for interest ID ${interestId}:`,
+          fetchError
+        );
+        continue;
+      }
+
+      // Increment the votescount by 1
+      const newVotesCount = voteRecord.votescount + 1;
+
+      // Update the votescount in the database
+      const { error: updateError } = await supabase
+        .from("Votes")
+        .update({ votescount: newVotesCount })
+        .eq("eventid", eventId)
+        .eq("interestid", interestId);
+
+      if (updateError) {
+        console.error(
+          `Error updating vote for interest ID ${interestId}:`,
+          updateError
+        );
+      } else {
+        console.log(`Vote incremented for interest ID ${interestId}`);
+      }
+    }
+
+    return res.status(201).json({ message: "Votes submitted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Error submitting votes", error });
+    return res.status(500).json("Internal server error");
   }
 });
 

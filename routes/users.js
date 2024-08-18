@@ -267,7 +267,9 @@ router.get("/users/search", async (req, res) => {
   // if (!username) { //Commenting out for now, can implement later if needed
   //Counts empty username because it's falsy :wink:
   try {
-    const { data, error } = await supabase.from("Users").select();
+    const { data, error } = await supabase
+      .from("Users")
+      .select("id, username, name");
     return res.status(200).json(data);
   } catch (error) {
     return res.status(500).json({ message: "Error searching users", error });
