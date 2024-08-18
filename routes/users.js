@@ -195,13 +195,17 @@ router.post("/login", async (req, res) => {
 
   // Fetch user
   try {
-    const {user, error} = await supabase.from("Users").select("id").eq('username', username).eq('password', password);
-    console.log(user);
-    if (!user) {
+    const { data, error } = await supabase
+      .from("Users")
+      .select("id")
+      .eq("username", username)
+      .eq("password", password);
+    console.log(data);
+    if (!data) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    return res.status(200).json({ userId: user.id });
+    return res.status(200).json({ userId: data[0].id });
   } catch (error) {
     return res.status(500).json({ message: "Error logging in", error });
   }
@@ -266,24 +270,35 @@ router.post("/login", async (req, res) => {
 router.get("/users/search", async (req, res) => {
   const { username } = req.query;
 
-  if (!username) {
-    //Return empty list? Or everyone?
-  }
-
+  // if (!username) { //Commenting out for now, can implement later if needed
+  //Counts empty username because it's falsy :wink:
   try {
-    const users = await db("users").where("username", "like", `%${username}%`);
-    res.status(200).json(users);
+    const { data, error } = await supabase.from("Users").select();
+    return res.status(200).json(data);
   } catch (error) {
-    res.status(500).json({ message: "Error searching users", error });
+    return res.status(500).json({ message: "Error searching users", error });
   }
+  // }
+
+  // try {
+  //   const { data, error } = await supabase
+  //     .from("Users")
+  //     .select()
+  //     .like("username", username);
+  //   return res.status(200).json(data);
+  // } catch (error) {
+  //   return res.status(500).json({ message: "Error searching users", error });
+  // }
 });
 
 /**
  * @swagger
- * /api/user-interests:
+ * /user-interests:
  *   post:
- *     summary: Add an interest to a user
- *     tags: [User Interests]
+ *     summary: Add interests to users
+ *     description: Adds an array of user-interest combinations to the UserInterests table, excluding existing combinations.
+ *     tags:
+ *       - User Interests
  *     requestBody:
  *       required: true
  *       content:
@@ -291,72 +306,98 @@ router.get("/users/search", async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               userId:
- *                 type: integer
- *                 description: ID of the user to whom the interest is being added
- *               interestId:
- *                 type: integer
- *                 description: ID of the interest being added
- *             required:
- *               - userId
- *               - interestId
- *     responses:
- *       201:
- *         description: Successfully added interest to user
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                   description: The ID of the newly created user-interest relationship
- *                 user_id:
- *                   type: integer
- *                   description: The ID of the user
- *                 interest_id:
- *                   type: integer
- *                   description: The ID of the interest
- *       400:
- *         description: Missing user ID or interest ID
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   description: Error message
- *       500:
- *         description: Error adding interest to user
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   description: Error message
- *                 error:
+ *               interestsArray:
+ *                 type: array
+ *                 items:
  *                   type: object
- *                   description: Error details
+ *                   properties:
+ *                     userid:
+ *                       type: integer
+ *                       description: The ID of the user.
+ *                       example: 1
+ *                     interestid:
+ *                       type: integer
+ *                       description: The ID of the interest.
+ *                       example: 101
+ *             required:
+ *               - interestsArray
+ *     responses:
+ *       '200':
+ *         description: Interests added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: string
+ *               example: "Added interests!"
+ *       '400':
+ *         description: Bad request, missing required fields or invalid data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Missing required fields"
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Error adding interests"
+ *                 error:
+ *                   type: string
+ *                   example: "Detailed error message"
  */
 router.post("/user-interests", async (req, res) => {
-  const { userId, interestId } = req.body;
+  const interestsArray = req.body.interestsArray;
+  console.log(req.body.interestsArray);
 
-  if (!userId || !interestId) {
-    return res
-      .status(400)
-      .json({ message: "User ID and Interest ID are required" });
+  // Fetch existing records with matching foreign key combinations
+  const { data: existingRecords, error: fetchError } = await supabase
+    .from("UserInterests")
+    .select("userid, interestid")
+    .in(
+      "userid",
+      interestsArray.map((record) => record.userid)
+    )
+    .in(
+      "interestid",
+      interestsArray.map((record) => record.interestid)
+    );
+
+  if (fetchError) {
+    console.error("Error fetching existing records:", fetchError);
+    return;
   }
 
+  // Create a set of existing foreign key combinations for quick lookup
+  const existingCombinations = new Set(
+    existingRecords.map((record) =>
+      JSON.stringify([record.userid, record.interestid])
+    )
+  );
+
+  // Filter out records that have existing foreign key combinations
+  const uniqueRecords = interestsArray.filter((record) => {
+    const combination = JSON.stringify([record.userid, record.interestid]);
+    return !existingCombinations.has(combination);
+  });
+
+  // Insert new records that do not exist already
   try {
-    const newUserInterest = await db("user_interests")
-      .insert({ user_id: userId, interest_id: interestId })
-      .returning("*");
-    res.status(201).json(newUserInterest[0]);
-  } catch (error) {
-    res.status(500).json({ message: "Error adding interest to user", error });
+    await supabase
+      .from("UserInterests")
+      .insert(uniqueRecords);
+    return res.status(200).json("Added interests!");
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ message: "Error adding interests", error: err });
   }
 });
 
@@ -425,28 +466,15 @@ router.get("/profile/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const user = await db("users")
-      .where({ id: userId })
-      .first()
-      .select("name", "username");
+    const { data, error } = await supabase.from("Users").select("name, username, Interests (id, name, inside, outside, free)").eq("id", userId);
 
-    if (!user) {
+    if (!data) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const interests = await db("user_interests")
-      .join("interests", "user_interests.interest_id", "=", "interests.id")
-      .where({ user_id: userId })
-      .select(
-        "interests.id",
-        "interests.name",
-        "interests.inside",
-        "interests.outside"
-      );
-
-    res.status(200).json({ ...user, interests });
+    return res.status(200).json({ data });
   } catch (error) {
-    res.status(500).json({ message: "Error fetching user's profile", error });
+    return res.status(500).json({ message: "Error fetching user's profile", error });
   }
 });
 
