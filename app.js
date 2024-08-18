@@ -36,6 +36,9 @@ app.use("/api", usersRouter);
 //Go to Group Members page (groupid) => list of Users              -- DONE
 //Remove Interest (userid, interestid) => 200                      -- DONE
 //Get all Events in Group (groupid) => list of Events              -- DONE
+//Opt out of Event (eventId, userId) => 200                        -- DONE
+//Implement timer
+//Implement vote status -- not-voted, voted, opt-out               -- DONE
 
 app.listen(port, () => {
   console.log("Express demo now listening on localhost: " + port);

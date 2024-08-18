@@ -72,7 +72,12 @@ router.post("/events", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("Events")
-      .insert({ name: name, groupid: groupId, enddate: enddate })
+      .insert({
+        name: name,
+        groupid: groupId,
+        enddate: enddate,
+        isactive: true,
+      })
       .select("id");
     console.log(data);
 
@@ -86,9 +91,20 @@ router.post("/events", async (req, res) => {
       votescount: 0,
     }));
 
-    const { data: votesData, error: votesError } = await supabase
-      .from("Votes")
-      .insert(voteObjects);
+    await supabase.from("Votes").insert(voteObjects);
+
+    const { data: groupMembers, error: groupMemberError } = await supabase
+      .from("GroupMembers")
+      .select("userid")
+      .eq("groupid", groupId);
+
+    const userStatuses = groupMembers.map((member) => ({
+      userid: member.userid,
+      eventid: eventId,
+      status: "not-voted",
+    }));
+
+    await supabase.from("UserEventStatus").insert(userStatuses);
 
     return res.status(201).json("Created new event!");
   } catch (error) {
@@ -254,7 +270,7 @@ router.get("/events/:groupId/interests", async (req, res) => {
  */
 router.post("/events/:eventId/vote", async (req, res) => {
   const { eventId } = req.params;
-  const { votes } = req.body; // Assume votes is an array of interest ids
+  const { userId, votes } = req.body; // Assume votes is an array of interest ids
 
   if (!votes || !Array.isArray(votes)) {
     return res
@@ -300,9 +316,33 @@ router.post("/events/:eventId/vote", async (req, res) => {
       }
     }
 
+    await supabase
+      .from("UserEventStatus")
+      .update({ status: "voted" })
+      .eq("userid", userId)
+      .eq("eventid", eventId);
+
     return res.status(201).json({ message: "Votes submitted successfully" });
   } catch (error) {
-    return res.status(500).json("Internal server error");
+    return res.status(500).json({ message: "Error voting for event", error });
+  }
+});
+
+router.post("/events/:eventId/optout", async (req, res) => {
+  const { userId } = req.body;
+  const { eventId } = req.params;
+
+  try {
+    await supabase
+      .from("UserEventStatus")
+      .update({ status: "opt-out" })
+      .eq("eventid", eventId)
+      .eq("userid", userId);
+    return res.status(200).json("Opted out of event!");
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Error opting out of event", error });
   }
 });
 
