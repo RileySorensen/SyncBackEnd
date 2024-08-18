@@ -109,4 +109,85 @@ router.post("/interests", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /interests:
+ *   delete:
+ *     summary: Remove an interest from a user
+ *     description: Removes a specific interest from a user in the UserInterests table.
+ *     tags: [Interests]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *                 description: The ID of the user from whom the interest should be removed.
+ *                 example: 1
+ *               interestId:
+ *                 type: integer
+ *                 description: The ID of the interest to be removed.
+ *                 example: 5
+ *             required:
+ *               - userId
+ *               - interestId
+ *     responses:
+ *       '200':
+ *         description: Successfully removed the interest from the user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Removed Interest successfully"
+ *       '400':
+ *         description: Bad request, missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "User ID and Interest ID are required"
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Error removing interest"
+ *                 error:
+ *                   type: string
+ *                   example: "Detailed error message"
+ */
+router.delete("/interests", async (req, res) => {
+  const { userId, interestId } = req.body;
+
+  if (!userId || !interestId) {
+    return res
+      .status(400)
+      .json({ message: "User ID and Interest ID are required" });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("UserInterests")
+      .delete()
+      .eq("userid", userId)
+      .eq("interestid", interestId);
+    return res.status(200).json({ message: "Removed Interest successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Error removing interest", error });
+  }
+});
+
 export default router;

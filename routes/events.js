@@ -86,7 +86,7 @@ router.post("/events", async (req, res) => {
  * /api/events/{eventId}/vote:
  *   get:
  *     summary: Get interests available for voting in a specific event
- *     tags: [Events, Voting]
+ *     tags: [Events]
  *     parameters:
  *       - in: path
  *         name: eventId
@@ -166,7 +166,7 @@ router.get("/events/:eventId/vote", async (req, res) => {
  * /api/events/{eventId}/vote:
  *   post:
  *     summary: Submit votes for interests in a specific event
- *     tags: [Events, Voting]
+ *     tags: [Events]
  *     parameters:
  *       - in: path
  *         name: eventId

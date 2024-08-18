@@ -33,8 +33,13 @@ router.post("/groups", async (req, res) => {
   }
 
   try {
-    
-    return res.status(201).json("Created new group!");
+    const { data, error } = await supabase
+      .from("Groups")
+      .insert({ name: name })
+      .select("id");
+    console.log(data);
+
+    return res.status(201).json("Created new group, id: " + data[0].id);
   } catch (error) {
     res.status(500).json({ message: "Error creating group", error });
   }
@@ -45,7 +50,7 @@ router.post("/groups", async (req, res) => {
  * /api/group-members:
  *   post:
  *     summary: Add a user to a group
- *     tags: [Group Members]
+ *     tags: [Groups]
  *     requestBody:
  *       required: true
  *       content:
@@ -113,12 +118,16 @@ router.post("/group-members", async (req, res) => {
   }
 
   try {
-    const newGroupMember = await db("group_members")
-      .insert({ user_id: userId, group_id: groupId })
-      .returning("*");
-    res.status(201).json(newGroupMember[0]);
+    const { data, error } = await supabase
+      .from("GroupMembers")
+      .insert({ userid: userId, groupid: groupId });
+    console.log(data);
+    console.log(error);
+    return res.status(200).json("Added to the group!");
   } catch (error) {
-    res.status(500).json({ message: "Error adding member to group", error });
+    return res
+      .status(500)
+      .json({ message: "Error adding member to group", error });
   }
 });
 
@@ -127,7 +136,7 @@ router.post("/group-members", async (req, res) => {
  * /api/group-members:
  *   delete:
  *     summary: Remove a user from a group
- *     tags: [Group Members]
+ *     tags: [Groups]
  *     requestBody:
  *       required: true
  *       content:
@@ -189,65 +198,53 @@ router.delete("/group-members", async (req, res) => {
   }
 
   try {
-    await db("group_members")
-      .where({ user_id: userId, group_id: groupId })
-      .del();
-    res.status(200).json({ message: "Left group successfully" });
+    const { data, error } = await supabase
+      .from("GroupMembers")
+      .delete()
+      .eq("userid", userId)
+      .eq("groupid", groupId);
+    console.log(error);
+    return res.status(200).json({ message: "Left group successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Error leaving group", error });
+    return res.status(500).json({ message: "Error leaving group", error });
   }
 });
 
 /**
  * @swagger
- * /api/groups/{userId}:
+ * /groups/{userId}:
  *   get:
- *     summary: Get the user's groups and events
- *     tags: [Groups, Events]
+ *     summary: Retrieve groups for a specific user
+ *     description: Fetches all groups associated with a specified user ID from the Users table.
+ *     tags: [Groups]
  *     parameters:
  *       - in: path
  *         name: userId
- *         schema:
- *           type: integer
  *         required: true
- *         description: The ID of the user to retrieve groups and events for
- *       - in: query
- *         name: groupId
  *         schema:
  *           type: integer
- *         required: false
- *         description: The ID of the group to retrieve events for
+ *         description: The ID of the user whose groups are to be retrieved.
+ *         example: 1
  *     responses:
- *       200:
- *         description: Successfully fetched user's groups and events
+ *       '200':
+ *         description: Successfully retrieved the list of groups for the user
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 groups:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                       name:
- *                         type: string
- *                 events:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: integer
- *                       name:
- *                         type: string
- *                       date:
- *                         type: string
- *                         format: date-time
- *       400:
- *         description: Invalid user ID or group ID
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                     description: The ID of the group.
+ *                     example: 2
+ *                   name:
+ *                     type: string
+ *                     description: The name of the group.
+ *                     example: "Study Group"
+ *       '404':
+ *         description: User or groups not found
  *         content:
  *           application/json:
  *             schema:
@@ -255,8 +252,9 @@ router.delete("/group-members", async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *       500:
- *         description: Error fetching user's groups or events
+ *                   example: "Groups not found!"
+ *       '500':
+ *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
@@ -264,29 +262,33 @@ router.delete("/group-members", async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
+ *                   example: "Error fetching user's groups"
  *                 error:
- *                   type: object
+ *                   type: string
+ *                   example: "Detailed error message"
  */
-router.get('/groups/:userId', async (req, res) => {
+router.get("/groups/:userId", async (req, res) => {
   const { userId } = req.params;
-  const { groupId } = req.query;
+  console.log(userId);
 
   try {
-    const groups = await db('groups')
-      .join('group_members', 'groups.id', '=', 'group_members.group_id')
-      .where({ user_id: userId })
-      .select('groups.id', 'groups.name');
+    const { data, error } = await supabase
+      .from("Users")
+      .select("name, Groups (id, name)")
+      .eq("id", userId);
 
-    let events = [];
-    if (groupId) {
-      events = await db('events')
-        .where({ group_id: groupId })
-        .select('id', 'name', 'date');
+    console.log(data);
+    console.log(error);
+
+    if (!data) {
+      return res.status(404).json("Groups not found!");
     }
 
-    res.status(200).json({ groups, events });
+    return res.status(200).json(data[0].Groups);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching user\'s groups or events', error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching user's groups", error });
   }
 });
 
@@ -295,7 +297,7 @@ router.get('/groups/:userId', async (req, res) => {
  * /api/groups/{groupId}/members:
  *   get:
  *     summary: Get members of a specific group
- *     tags: [Groups, Users]
+ *     tags: [Groups]
  *     parameters:
  *       - in: path
  *         name: groupId
@@ -343,18 +345,18 @@ router.get('/groups/:userId', async (req, res) => {
  *                 error:
  *                   type: object
  */
-router.get('/groups/:groupId/members', async (req, res) => {
+router.get("/groups/:groupId/members", async (req, res) => {
   const { groupId } = req.params;
 
   try {
-    const members = await db('users')
-      .join('group_members', 'users.id', '=', 'group_members.user_id')
+    const members = await db("users")
+      .join("group_members", "users.id", "=", "group_members.user_id")
       .where({ group_id: groupId })
-      .select('users.id', 'users.name', 'users.username');
+      .select("users.id", "users.name", "users.username");
 
     res.status(200).json(members);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching group members', error });
+    res.status(500).json({ message: "Error fetching group members", error });
   }
 });
 

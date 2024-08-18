@@ -2,12 +2,6 @@ import express from "express";
 import supabase from "../supabaseClient.js";
 const router = express.Router();
 
-router.get("/", async (req, res) => {
-  const { data, error } = await supabase.from("Users").select();
-  console.log(data);
-  res.send(data);
-});
-
 /**
  * @swagger
  * /users:
@@ -389,9 +383,7 @@ router.post("/user-interests", async (req, res) => {
 
   // Insert new records that do not exist already
   try {
-    await supabase
-      .from("UserInterests")
-      .insert(uniqueRecords);
+    await supabase.from("UserInterests").insert(uniqueRecords);
     return res.status(200).json("Added interests!");
   } catch (err) {
     return res
@@ -405,7 +397,7 @@ router.post("/user-interests", async (req, res) => {
  * /api/profile/{userId}:
  *   get:
  *     summary: Get profile information for a specific user
- *     tags: [Users, Profile]
+ *     tags: [Users]
  *     parameters:
  *       - in: path
  *         name: userId
@@ -465,7 +457,10 @@ router.get("/profile/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const { data, error } = await supabase.from("Users").select("name, username, Interests (id, name, inside, outside, free)").eq("id", userId);
+    const { data, error } = await supabase
+      .from("Users")
+      .select("name, username, Interests (id, name, inside, outside, free)")
+      .eq("id", userId);
 
     if (!data) {
       return res.status(404).json({ message: "User not found" });
@@ -473,7 +468,9 @@ router.get("/profile/:userId", async (req, res) => {
 
     return res.status(200).json({ data });
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching user's profile", error });
+    return res
+      .status(500)
+      .json({ message: "Error fetching user's profile", error });
   }
 });
 
