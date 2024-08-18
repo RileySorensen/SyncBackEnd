@@ -464,7 +464,7 @@ router.get("/profile/:userId", async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    return res.status(200).json({ data });
+    return res.status(200).json(data[0]);
   } catch (error) {
     return res
       .status(500)
