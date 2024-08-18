@@ -1,11 +1,13 @@
 import express from "express";
+import supabase from "../supabaseClient.js";
 const router = express.Router();
 
 /**
  * @swagger
- * /api/interests:
+ * /interests:
  *   post:
  *     summary: Create a new interest
+ *     description: Adds a new interest to the Interests table.
  *     tags: [Interests]
  *     requestBody:
  *       required: true
@@ -16,39 +18,35 @@ const router = express.Router();
  *             properties:
  *               name:
  *                 type: string
- *                 description: The name of the interest
+ *                 description: The name of the interest.
+ *                 example: "Hiking"
  *               inside:
  *                 type: boolean
- *                 description: Whether the interest is an indoor activity
+ *                 description: Indicates if the interest is an indoor activity.
+ *                 example: false
  *               outside:
  *                 type: boolean
- *                 description: Whether the interest is an outdoor activity
+ *                 description: Indicates if the interest is an outdoor activity.
+ *                 example: true
+ *               free:
+ *                 type: boolean
+ *                 description: Indicates if the interest is free or paid.
+ *                 example: true
  *             required:
  *               - name
  *               - inside
  *               - outside
+ *               - free
  *     responses:
- *       201:
- *         description: Successfully created a new interest
+ *       '201':
+ *         description: Interest created successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: integer
- *                   description: The ID of the newly created interest
- *                 name:
- *                   type: string
- *                   description: The name of the interest
- *                 inside:
- *                   type: boolean
- *                   description: Indicates if the interest is an indoor activity
- *                 outside:
- *                   type: boolean
- *                   description: Indicates if the interest is an outdoor activity
- *       400:
- *         description: Missing name, inside, or outside fields
+ *               type: string
+ *               example: "Added new interest!"
+ *       '400':
+ *         description: Bad request, missing required fields or invalid data
  *         content:
  *           application/json:
  *             schema:
@@ -56,9 +54,9 @@ const router = express.Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message
- *       500:
- *         description: Error creating interest
+ *                   example: "Name, inside, outside, and free are required"
+ *       '500':
+ *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
@@ -66,27 +64,48 @@ const router = express.Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message
+ *                   example: "Error creating interest"
  *                 error:
- *                   type: object
- *                   description: Error details
+ *                   type: string
+ *                   example: "Detailed error message"
  */
 router.post("/interests", async (req, res) => {
-  const { name, inside, outside } = req.body;
+  const { name, inside, outside, free } = req.body;
 
-  if (!name || inside === undefined || outside === undefined) {
+  if (
+    !name ||
+    inside === undefined ||
+    outside === undefined ||
+    free === undefined
+  ) {
     return res
       .status(400)
-      .json({ message: "Name, inside, and outside are required" });
+      .json({ message: "Name, inside, outside, and free are required" });
+  }
+
+  const { data: existingInterest, error: checkError } = await supabase
+    .from("Interests")
+    .select()
+    .ilike("name", name.toLowerCase())
+    .single();
+
+  if (existingInterest) {
+    return res.status(409).json("Interest already exists!");
   }
 
   try {
-    const newInterest = await db("interests")
-      .insert({ name, inside, outside })
-      .returning("*");
-    res.status(201).json(newInterest[0]);
+    const { data, error } = await supabase
+      .from("Interests")
+      .insert({
+        name: name.toLowerCase(),
+        inside: inside,
+        outside: outside,
+        free: free,
+      })
+      .select("id");
+    return res.status(201).json("Added new interest!");
   } catch (error) {
-    res.status(500).json({ message: "Error creating interest", error });
+    return res.status(500).json({ message: "Error creating interest", error });
   }
 });
 

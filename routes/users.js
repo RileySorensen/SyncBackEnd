@@ -297,8 +297,7 @@ router.get("/users/search", async (req, res) => {
  *   post:
  *     summary: Add interests to users
  *     description: Adds an array of user-interest combinations to the UserInterests table, excluding existing combinations.
- *     tags:
- *       - User Interests
+ *     tags: [Users]
  *     requestBody:
  *       required: true
  *       content:

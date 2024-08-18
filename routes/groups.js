@@ -1,4 +1,5 @@
 import express from "express";
+import supabase from "../supabaseClient.js";
 const router = express.Router();
 
 /**
@@ -32,8 +33,8 @@ router.post("/groups", async (req, res) => {
   }
 
   try {
-    const newGroup = await db("groups").insert({ name }).returning("*");
-    res.status(201).json(newGroup[0]);
+    
+    return res.status(201).json("Created new group!");
   } catch (error) {
     res.status(500).json({ message: "Error creating group", error });
   }
