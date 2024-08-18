@@ -7,7 +7,7 @@ const router = express.Router();
  * /events:
  *   post:
  *     summary: Create a new event and initialize votes for interests
- *     description: Creates a new event with the given name, group ID, and end date. Initializes votes for all interests in the specified group with a count of 0.
+ *     description: Creates a new event with the given name and group ID. Initializes votes for all interests in the specified group with a count of 0.
  *     tags: [Events]
  *     requestBody:
  *       required: true
@@ -24,11 +24,6 @@ const router = express.Router();
  *                 type: integer
  *                 description: The ID of the group associated with the event.
  *                 example: 1
- *               enddate:
- *                 type: string
- *                 format: date-time
- *                 description: The end date of the event in ISO 8601 format.
- *                 example: "2024-08-31T23:59:59Z"
  *     responses:
  *       '201':
  *         description: Event created successfully and votes initialized.
@@ -46,7 +41,7 @@ const router = express.Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Event name, groupId, and enddate are required"
+ *                   example: "Event name and groupId are required"
  *       '500':
  *         description: Error occurred while creating the event.
  *         content:
@@ -62,11 +57,11 @@ const router = express.Router();
  *                   additionalProperties: true
  */
 router.post("/events", async (req, res) => {
-  const { name, groupId, enddate } = req.body;
+  const { name, groupId } = req.body;
 
-  if (!name || !groupId || !enddate) {
+  if (!name || !groupId) {
     return res.status(400).json({
-      message: "Event name, groupId, and enddate are required",
+      message: "Event name and groupId are required",
     });
   }
 
@@ -76,7 +71,6 @@ router.post("/events", async (req, res) => {
       .insert({
         name: name,
         groupid: groupId,
-        enddate: enddate,
         isactive: true,
       })
       .select("id");
