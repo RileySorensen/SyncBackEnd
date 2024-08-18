@@ -430,10 +430,6 @@ router.post("/user-interests", async (req, res) => {
  *                         type: integer
  *                       name:
  *                         type: string
- *                       inside:
- *                         type: boolean
- *                       outside:
- *                         type: boolean
  *       400:
  *         description: Invalid user ID
  *         content:
@@ -461,7 +457,7 @@ router.get("/profile/:userId", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("Users")
-      .select("name, username, Interests (id, name, inside, outside, free)")
+      .select("name, username, Interests (id, name)")
       .eq("id", userId);
 
     if (!data) {

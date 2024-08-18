@@ -20,23 +20,8 @@ const router = express.Router();
  *                 type: string
  *                 description: The name of the interest.
  *                 example: "Hiking"
- *               inside:
- *                 type: boolean
- *                 description: Indicates if the interest is an indoor activity.
- *                 example: false
- *               outside:
- *                 type: boolean
- *                 description: Indicates if the interest is an outdoor activity.
- *                 example: true
- *               free:
- *                 type: boolean
- *                 description: Indicates if the interest is free or paid.
- *                 example: true
  *             required:
  *               - name
- *               - inside
- *               - outside
- *               - free
  *     responses:
  *       '201':
  *         description: Interest created successfully
@@ -54,7 +39,7 @@ const router = express.Router();
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "Name, inside, outside, and free are required"
+ *                   example: "Name is required"
  *       '500':
  *         description: Internal server error
  *         content:
@@ -70,17 +55,10 @@ const router = express.Router();
  *                   example: "Detailed error message"
  */
 router.post("/interests", async (req, res) => {
-  const { name, inside, outside, free } = req.body;
+  const { name } = req.body;
 
-  if (
-    !name ||
-    inside === undefined ||
-    outside === undefined ||
-    free === undefined
-  ) {
-    return res
-      .status(400)
-      .json({ message: "Name, inside, outside, and free are required" });
+  if (!name) {
+    return res.status(400).json({ message: "Name is required" });
   }
 
   const { data: existingInterest, error: checkError } = await supabase
@@ -98,9 +76,6 @@ router.post("/interests", async (req, res) => {
       .from("Interests")
       .insert({
         name: name.toLowerCase(),
-        inside: inside,
-        outside: outside,
-        free: free,
       })
       .select("id");
     return res.status(201).json("Added new interest!");
@@ -187,6 +162,86 @@ router.delete("/interests", async (req, res) => {
     return res.status(200).json({ message: "Removed Interest successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Error removing interest", error });
+  }
+});
+
+/**
+ * @swagger
+ * /interests/{userId}:
+ *   get:
+ *     summary: Get a list of interests not yet selected by the user.
+ *     description: Retrieves a list of interests from the database, excluding those that have already been selected by the user.
+ *     tags: [Interests]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the user.
+ *     responses:
+ *       200:
+ *         description: A list of interests that the user has not yet selected.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                     description: The ID of the interest.
+ *                   name:
+ *                     type: string
+ *                     description: The name of the interest.
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Error message.
+ *                 error:
+ *                   type: object
+ *                   description: Error details.
+ */
+router.get("/interests/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // Get the list of all interests
+    const { data: allInterests, error: allInterestsError } = await supabase
+      .from("Interests")
+      .select("id, name");
+
+    if (allInterestsError) throw allInterestsError;
+
+    // Get the list of interests the user has already selected
+    const { data: userInterests, error: userInterestsError } = await supabase
+      .from("UserInterests")
+      .select("interestid")
+      .eq("userid", userId);
+
+    if (userInterestsError) throw userInterestsError;
+
+    // Get the IDs of the interests the user has already selected
+    const userInterestIds = userInterests.map(
+      (interest) => interest.interestid
+    );
+
+    // Filter out the interests the user has already selected
+    const availableInterests = allInterests.filter(
+      (interest) => !userInterestIds.includes(interest.id)
+    );
+
+    // Return the available interests
+    return res.status(200).json(availableInterests);
+  } catch (error) {
+    return res.status(500).json({ message: "Error fetching interests", error });
   }
 });
 

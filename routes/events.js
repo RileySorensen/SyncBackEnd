@@ -8,6 +8,7 @@ const router = express.Router();
  *   post:
  *     summary: Create a new event and initialize votes for interests
  *     description: Creates a new event with the given name, group ID, and end date. Initializes votes for all interests in the specified group with a count of 0.
+ *     tags: [Events]
  *     requestBody:
  *       required: true
  *       content:
@@ -146,6 +147,7 @@ async function getAllInterestsInGroup(groupId) {
  *   get:
  *     summary: Get all unique interests for a group
  *     description: Retrieves a list of all unique interests associated with the specified group ID. This includes interests of all users within the group.
+ *     tags: [Events]
  *     parameters:
  *       - in: path
  *         name: groupId
@@ -322,12 +324,75 @@ router.post("/events/:eventId/vote", async (req, res) => {
       .eq("userid", userId)
       .eq("eventid", eventId);
 
+    if (checkIfEveryoneHasVoted(eventId)) {
+      await supabase
+        .from("Events")
+        .update({ isactive: false })
+        .eq("id", eventId);
+    }
+
     return res.status(201).json({ message: "Votes submitted successfully" });
   } catch (error) {
     return res.status(500).json({ message: "Error voting for event", error });
   }
 });
 
+/**
+ * @swagger
+ * /events/{eventId}/optout:
+ *   post:
+ *     summary: Opt out of an event.
+ *     description: Updates the user's status for the specified event to "opt-out" in the `UserEventStatus` table.
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: eventId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: The ID of the event to opt out of.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               userId:
+ *                 type: integer
+ *                 description: The ID of the user opting out.
+ *     responses:
+ *       200:
+ *         description: Successfully opted out of the event.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: string
+ *               example: "Opted out of event!"
+ *       400:
+ *         description: Bad request. Missing or invalid parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Error message.
+ *       500:
+ *         description: Internal server error.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Error message.
+ *                 error:
+ *                   type: object
+ *                   description: Error details.
+ */
 router.post("/events/:eventId/optout", async (req, res) => {
   const { userId } = req.body;
   const { eventId } = req.params;
@@ -338,6 +403,14 @@ router.post("/events/:eventId/optout", async (req, res) => {
       .update({ status: "opt-out" })
       .eq("eventid", eventId)
       .eq("userid", userId);
+
+    if (checkIfEveryoneHasVoted(eventId)) {
+      await supabase
+        .from("Events")
+        .update({ isactive: false })
+        .eq("id", eventId);
+    }
+
     return res.status(200).json("Opted out of event!");
   } catch (error) {
     return res
@@ -345,5 +418,47 @@ router.post("/events/:eventId/optout", async (req, res) => {
       .json({ message: "Error opting out of event", error });
   }
 });
+
+async function checkIfEveryoneHasVoted(eventId) {
+  try {
+    // Step 1: Get the group ID for the event
+    const { data: event, error: eventError } = await supabase
+      .from("Events")
+      .select("groupid")
+      .eq("id", eventId)
+      .single();
+
+    if (eventError) throw eventError;
+    const { groupid: groupId } = event;
+
+    // Step 2: Get all users in the group
+    const { data: users, error: usersError } = await supabase
+      .from("GroupMembers")
+      .select("userid")
+      .eq("groupid", groupId);
+
+    if (usersError) throw usersError;
+    const userIds = users.map((user) => user.userid);
+
+    // Step 3: Get the voting status for each user in the event
+    const { data: userStatuses, error: statusesError } = await supabase
+      .from("UserEventStatus")
+      .select("userid, status")
+      .in("userid", userIds)
+      .eq("eventid", eventId);
+
+    if (statusesError) throw statusesError;
+
+    // Step 4: Check if all users have voted or opted out
+    const allVotedOrOptedOut = userStatuses.every(
+      (status) => status.status === "voted" || status.status === "opt-out"
+    );
+
+    return allVotedOrOptedOut;
+  } catch (error) {
+    console.log("Error checking if everyone has voted! ", error);
+    return false;
+  }
+}
 
 export default router;

@@ -26,7 +26,7 @@ app.use("/api", usersRouter);
 //Search Users (username) => list of Users                         -- DONE
 //Create new GroupMembers (userid, groupid) => 200                 -- DONE
 //Add Interest to User (userid, interestid) => 200                 -- DONE
-//Create new custom Interest (name, inside, outside, free) => 200  -- DONE
+//Create new custom Interest (name) => 200                         -- DONE
 //Create new Event (name, date) => 200                             -- DONE
 //Go to Vote page () => List of Interests                          -- DONE
 //Submit Vote (list of interestids) => 200                         -- DONE
@@ -37,7 +37,9 @@ app.use("/api", usersRouter);
 //Remove Interest (userid, interestid) => 200                      -- DONE
 //Get all Events in Group (groupid) => list of Events              -- DONE
 //Opt out of Event (eventId, userId) => 200                        -- DONE
-//Implement timer
+//Get all interests minus user's interests                         -- DONE
+//Implement timer                                                  -- SCRAPPED
+//End Event once everyone has voted/opted out                      -- DONE
 //Implement vote status -- not-voted, voted, opt-out               -- DONE
 
 app.listen(port, () => {
