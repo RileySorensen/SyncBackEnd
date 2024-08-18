@@ -1,4 +1,5 @@
 import express from "express";
+import supabase from "../supabaseClient.js";
 const router = express.Router();
 
 /**
@@ -65,21 +66,68 @@ const router = express.Router();
  *                   description: Error details
  */
 router.post("/events", async (req, res) => {
-  const { name, date } = req.body;
+  const { name, groupId, enddate } = req.body;
 
-  if (!name || !date) {
-    return res
-      .status(400)
-      .json({ message: "Event name and date are required" });
+  if (!name || !groupId || !enddate) {
+    return res.status(400).json({
+      message: "Event name, groupId, and enddate are required",
+    });
   }
 
   try {
-    const newEvent = await db("events").insert({ name, date }).returning("*");
-    res.status(201).json(newEvent[0]);
+    const { data, error } = await supabase
+      .from("Events")
+      .insert({ name: name, groupid: groupId, enddate: enddate })
+      .select("id");
+    console.log(data);
+
+    const eventId = data[0].id;
+
+    const interestsList = await getAllInterestsInGroup(groupId);
+    console.log(interestsList);
+    const voteObjects = interestsList.map((interest) => ({
+      eventid: eventId,
+      interestid: interest.id,
+      votescount: 0,
+    }));
+
+    const { data: votesData, error: votesError } = await supabase
+      .from("Votes")
+      .insert(voteObjects);
+
+    return res.status(201).json("Created new event!");
   } catch (error) {
-    res.status(500).json({ message: "Error creating event", error });
+    return res.status(500).json({ message: "Error creating event", error });
   }
 });
+
+async function getAllInterestsInGroup(groupId) {
+  try {
+    const { data: groupMembers, error: groupMemberError } = await supabase
+      .from("GroupMembers")
+      .select("userid")
+      .eq("groupid", groupId);
+
+    const userIds = groupMembers.map((member) => member.userid);
+
+    const { data: userInterests, error: userInterestError } = await supabase
+      .from("UserInterests")
+      .select("interestid")
+      .in("userid", userIds);
+
+    const interestIds = userInterests.map((interest) => interest.interestid);
+
+    const { data: uniqueInterests, error: uniqueInterestError } = await supabase
+      .from("Interests")
+      .select()
+      .in("id", [...new Set(interestIds)]);
+
+    return uniqueInterests;
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+}
 
 /**
  * @swagger

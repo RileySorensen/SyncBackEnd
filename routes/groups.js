@@ -349,14 +349,14 @@ router.get("/groups/:groupId/members", async (req, res) => {
   const { groupId } = req.params;
 
   try {
-    const members = await db("users")
-      .join("group_members", "users.id", "=", "group_members.user_id")
-      .where({ group_id: groupId })
-      .select("users.id", "users.name", "users.username");
+    const { data, error } = await supabase
+      .from("Groups")
+      .select("Users (id, name, username)")
+      .eq("id", groupId);
 
-    res.status(200).json(members);
+    return res.status(200).json(data[0].Users);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching group members", error });
+    return res.status(500).json({ message: "Error fetching group members", error });
   }
 });
 

@@ -27,13 +27,13 @@ app.use("/api", usersRouter);
 //Create new GroupMembers (userid, groupid) => 200                 -- DONE
 //Add Interest to User (userid, interestid) => 200                 -- DONE
 //Create new custom Interest (name, inside, outside, free) => 200  -- DONE
-//Create new Event (name, date) => 200
+//Create new Event (name, date) => 200                             -- DONE
 //Go to Vote page () => List of Interests
 //Submit Vote (list of interestids) => 200
 //Leave group (groupid, userid) => 200                             -- DONE
 //Go to profile page (userid) => name, username, list of Interests -- DONE
 //Go to groups/home page (userid) => list of Groups                -- DONE
-//Go to Group Members page (groupid) => list of Users
+//Go to Group Members page (groupid) => list of Users              -- DONE
 //Remove Interest (userid, interestid) => 200                      -- DONE
 //Get all Events in Group (groupid) => list of Events
 
